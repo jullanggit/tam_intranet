@@ -1,0 +1,19 @@
+cargo-features = ["codegen-backend"]
+
+[package]
+name = "tam_intranet"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.89"
+chrono = { version = "0.4.38", features = ["serde"] }
+regex = "1.10.6"
+reqwest = "0.12.7"
+reqwest_cookie_store = "0.8.0"
+scraper = "0.20.0"
+serde = { version = "1.0.210", features = ["derive"] }
+serde-aux = "4.5.0"
+simd-json = "0.14.0"
+tl = { version = "0.7.8", features = ["simd"] }
+tokio = { version = "1.40.0", features = ["full"] }

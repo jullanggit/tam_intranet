@@ -1,0 +1,153 @@
+use std::collections::HashMap;
+
+use anyhow::Result;
+use serde::Deserialize;
+
+use crate::intranet_client::IntranetClient;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ResData {
+    _status: u8,
+    data: Resources,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Resources {
+    courses: Vec<Course>,
+    students: Vec<Student>,
+    teachers: Vec<Teacher>,
+    classes: Vec<Class>,
+    rooms: Vec<Room>,
+    resources: [(); 0],
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Course {
+    course: String,
+    course_id: u32,
+    course_short: String,
+    course_label_or_course_description: String,
+    course_short_with_classes: String,
+    period_id: u8,
+    teacher_name: String,
+    // Really a vec but idk if deserialization would work
+    student_name: String,
+    subject_id: u8,
+    teacher_id: Vec<u32>,
+    student_id: Vec<u32>,
+    class_id: Vec<u16>,
+    class_name: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Student {
+    person_id: u32,
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Teacher {
+    person_id: u32,
+    name: String,
+    acronym: Option<String>,
+    // Really a bool (probably)
+    occupied: u8,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Class {
+    class_id: u16,
+    class_name: String,
+    class_short: String,
+    class_common_name: String,
+    period_id: u8,
+    // Really an integer (u8)
+    class_level: String,
+    // Really a bool (probably)
+    occupied: u8,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Room {
+    room_id: u16,
+    room: String,
+    // Null
+    description: Option<String>,
+    // Really a bool (probably)
+    occupied: u8,
+    // Really an integer (u8)
+    sort1: String,
+    // Really an integer (u8)
+    sort2: String,
+    // Really an integer (u8)
+    room_category: String,
+    // Null
+    building: Option<String>,
+}
+impl Resources {
+    /// Returns the student id associated with the student. Note: Creates an internal student map, if you want to call this function on a lot of students, consider using get_student_map directly
+    pub fn get_student_id(&self, student: &str) -> u32 {
+        self.get_student_map()[student]
+    }
+    /// Returns a Map from student name (firstname.lastname) to studentId
+    /// TODO: Handle multi-part first/last names
+    pub fn get_student_map(&self) -> HashMap<String, u32> {
+        let mut student_map = HashMap::new();
+        self.students
+            .iter()
+            .map(|student| {
+                (
+                    // Convert (Lastname, Firstname) to (firstname.lastname)
+                    student
+                        .name
+                        // Cant split by ", " because that wouldn't return a Double-Ended Iterator
+                        .split(',')
+                        .map(|name_part| name_part.trim_start().to_lowercase())
+                        .rev()
+                        .intersperse('.'.to_string())
+                        .collect(),
+                    student.person_id,
+                )
+            })
+            .for_each(|(student_name, student_id)| {
+                student_map.insert(student_name, student_id);
+            });
+        student_map
+    }
+}
+impl<State> IntranetClient<State> {
+    /// TODO: Test if it needs authentication
+    /// TODO: Calculate the right periodId
+    pub async fn get_resources(&self) -> Result<Resources> {
+        // Get the csrf token from the classbook site, as the requests normally comes from there
+        let csrf_token = self
+            .get_csrf_token(&(format!("{}/timetable/classbook", self.school_url())))
+            .await?;
+
+        let mut resource_form = HashMap::new();
+        resource_form.insert("periodId", "81");
+        resource_form.insert("csrfToken", csrf_token.as_str());
+
+        let resource_url = format!("{}/timetable/ajax-get-resources", self.school_url());
+        let resource_response = self
+            .client()
+            .post(&resource_url)
+            .header("X-Requested-With", "XMLHttpRequest")
+            .form(&resource_form)
+            .send()
+            .await?;
+        let mut resource_body = resource_response.text().await?;
+
+        // Safe because the original resource text isnt used after this
+        let resources =
+            simd_json::from_slice::<ResData>(unsafe { resource_body.as_bytes_mut() })?.data;
+        Ok(resources)
+    }
+}
