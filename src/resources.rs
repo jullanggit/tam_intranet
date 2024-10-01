@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use compact_str::CompactString;
 use serde::Deserialize;
+use serde_aux::field_attributes::{deserialize_bool_from_anything, deserialize_number_from_string};
+use simd_json::prelude::ArrayTrait;
 
 use crate::intranet_client::IntranetClient;
 
@@ -26,20 +29,20 @@ pub struct Resources {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Course {
-    course: String,
+    course: CompactString,
     course_id: u32,
-    course_short: String,
+    course_short: CompactString,
     course_label_or_course_description: String,
-    course_short_with_classes: String,
+    course_short_with_classes: CompactString,
     period_id: u8,
-    teacher_name: String,
+    teacher_name: CompactString,
     // Really a vec but idk if deserialization would work
     student_name: String,
     subject_id: u8,
     teacher_id: Vec<u32>,
     student_id: Vec<u32>,
     class_id: Vec<u16>,
-    class_name: Vec<String>,
+    class_name: Vec<CompactString>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,9 +66,9 @@ struct Teacher {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Class {
     class_id: u16,
-    class_name: String,
-    class_short: String,
-    class_common_name: String,
+    class_name: CompactString,
+    class_short: CompactString, // Duplicate of class_name
+    class_common_name: CompactString,
     period_id: u8,
     // Really an integer (u8)
     class_level: String,
@@ -77,9 +80,8 @@ struct Class {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Room {
     room_id: u16,
-    room: String,
+    room: CompactString,
     // Null
-    description: Option<String>,
     // Really a bool (probably)
     occupied: u8,
     // Really an integer (u8)
@@ -88,8 +90,9 @@ struct Room {
     sort2: String,
     // Really an integer (u8)
     room_category: String,
+    description: Option<CompactString>,
     // Null
-    building: Option<String>,
+    building: Option<CompactString>,
 }
 impl Resources {
     pub fn get_student_id(&self, student_name: &Name) -> Option<u32> {

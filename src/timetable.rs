@@ -4,6 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveTime, Utc};
+use compact_str::CompactString;
 use serde::{Deserialize, Deserializer};
 use serde_aux::{
     field_attributes::{deserialize_bool_from_anything, deserialize_option_number_from_string},
@@ -27,7 +28,7 @@ impl TimeTableTrait for TimeTable {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Lesson {
+pub struct Lesson {
     id: u32,
     timetable_element_id: u32,
     holiday_id: u8,
@@ -60,59 +61,54 @@ struct Lesson {
     timetable_entry_type_short: String,
 
     message_id: u32,
-    message: Option<String>,
-    output: Option<String>, // Null or ""
-    title: String,
-    half_class_lesson: Option<String>, // Null or "0"
+    message: Option<CompactString>,
+    output: Option<CompactString>, // Null or ""
+    title: CompactString,
+    half_class_lesson: Option<CompactString>, // Null or "0"
     course_id: u32,
-    course_name: Option<String>,
-    course: Option<String>,
-    course_long: String, // Coulde be empty
+    course_name: Option<CompactString>,
+    course: Option<CompactString>,
+    course_long: CompactString, // Mostly empty
     is_exam_lesson: bool,
     is_checked_lesson: bool,
     lesson_absence_count: u8,
     subject_id: u8,
-    subject_name: Option<String>,
+    subject_name: Option<CompactString>,
     timegrid_id: u8,
     class_id: Vec<u32>,
-    class_name: String,
+    #[serde(deserialize_with = "deserialize_vec_from_string_or_vec")]
+    class_name: Vec<CompactString>, // Actually a Vec<String> (Seperator: ', ')
     #[serde(deserialize_with = "deserialize_vec_from_string_or_vec")]
     profile_id: Vec<u8>,
-    team_id: String, // Can be empty
+    team_id: CompactString, // Can be empty
     teacher_id: Vec<u32>,
-    teacher_acronym: String,
-    teacher_full_name: Vec<String>, // Can be empty
-    teacher_lastname: String,       // Can be empty
-    teacher_firstname: String,      // Can be empty
+    teacher_acronym: CompactString,
+    teacher_full_name: Vec<CompactString>, // Can be empty
+    teacher_lastname: CompactString,       // Can be empty
+    teacher_firstname: CompactString,      // Can be empty
     connected_teacher_id: [(); 0],
     connected_teacher_full_name: [(); 0],
     student: Vec<Student>,
     student_id: [(); 0],
-    student_full_name: String, // Can be empty
-    student_lastname: String,  // Can be empty
-    student_firstname: String, // Can be empty
+    student_full_name: CompactString, // Can be empty
+    student_lastname: CompactString,  // Can be empty
+    student_firstname: CompactString, // Can be empty
     room_id: Vec<u8>,
-    room_name: String,
-    location_description: String, // Can be empty
+    room_name: CompactString,
+    location_description: CompactString, // Can be empty
     resource_id: [(); 0],
     timetable_class_book_id: u16,
     has_homework: bool,
     has_homework_files: bool,
     has_exam: bool,
     has_exam_files: bool,
-    privileges: Option<Vec<String>>,
+    privileges: Option<Vec<CompactString>>,
     resource: Option<()>,
     reserved_resources: u8,
     total_stock: u8,
-    school: String, // Can be empty
-    related_id: Vec<String>,
-}
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Student {
-    student_id: u32,
-    student_name: String,
+    school: CompactString, // Can be empty
+    related_id: Vec<CompactString>,
 }
 
 impl IntranetClient<Authenticated> {
