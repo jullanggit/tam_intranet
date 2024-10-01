@@ -1,10 +1,11 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use anyhow::Result;
-use regex::Regex;
+use compact_str::CompactString;
+use regex_lite::Regex;
 use reqwest::{cookie::Jar, header::HeaderMap};
 
-use crate::{CSRF_REGEX, DEBUG};
+use crate::{resources::Name, CSRF_REGEX, DEBUG};
 
 pub struct Authenticated;
 pub struct Unauthenticated;
@@ -13,12 +14,12 @@ pub struct IntranetClient<State> {
     client: reqwest::Client,
     jar: Arc<Jar>,
     school: School,
-    student: String,
+    pub student: Name,
     _state: State,
 }
 impl IntranetClient<Unauthenticated> {
     /// student: (firstname.lastname)
-    pub fn new(school: School, student: impl Into<String>) -> Result<Self> {
+    pub fn new(school: School, student: impl Into<CompactString>) -> Result<Self> {
         let jar = Arc::new(Jar::default());
 
         let mut default_headers = HeaderMap::new();
@@ -37,7 +38,9 @@ impl IntranetClient<Unauthenticated> {
             client,
             jar,
             school,
-            student: student.into(),
+            student: Name {
+                string: student.into(),
+            },
             _state: Unauthenticated,
         })
     }
@@ -47,7 +50,7 @@ impl IntranetClient<Unauthenticated> {
         let mut auth_form = HashMap::new();
         auth_form.insert("hash", hash.as_ref());
         auth_form.insert("loginschool", self.school.code());
-        auth_form.insert("loginuser", self.student.as_str());
+        auth_form.insert("loginuser", self.student.string.as_str());
         auth_form.insert("loginpassword", password);
 
         self.client
@@ -95,9 +98,6 @@ impl<State> IntranetClient<State> {
     }
     pub fn url(&self) -> &'static str {
         "https://intranet.tam.ch"
-    }
-    pub fn student(&self) -> &str {
-        &self.student
     }
     pub fn school(&self) -> School {
         self.school
