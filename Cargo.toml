@@ -11,7 +11,7 @@ chrono = { version = "0.4.38", default-features = false, features = ["serde", "s
 compact_str = { version = "0.8.0", features = ["serde"] }
 mimalloc = "0.1.43"
 # Maybe use regex-lite
-regex = { version = "1.10.6", features = ["use_std"] }
+regex-lite = "0.1.6"
 reqwest = { version = "0.12.7", features = ["zstd"] }
 reqwest_cookie_store = "0.8.0"
 serde = { version = "1.0.210", features = ["derive"] }
