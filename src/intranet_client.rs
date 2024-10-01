@@ -127,11 +127,13 @@ impl<State> IntranetClient<State> {
 #[derive(Clone, Copy)]
 pub enum School {
     Mng,
+    UetikonAmSee,
 }
 impl School {
     const fn code(&self) -> &str {
         match self {
             Self::Mng => "krm",
+            Self::UetikonAmSee => "kue",
         }
     }
 }
