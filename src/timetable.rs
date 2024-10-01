@@ -52,9 +52,7 @@ pub struct Lesson {
     connected_id: Option<u32>,
     #[serde(deserialize_with = "deserialize_bool_from_anything")]
     is_all_day: bool,
-    timetable_entry_type_id: u8,
-
-    // Should probably be an enum
+    // timetable_entry_type_id: u8,
     #[serde(rename = "timetableEntryTypeLong")]
     timetable_entry_type: TimeTableEntryType,
 
@@ -70,7 +68,7 @@ pub struct Lesson {
     is_exam_lesson: bool,
     is_checked_lesson: bool,
     lesson_absence_count: u8,
-    subject_id: u8,
+    subject_id: u16,
     subject_name: Option<CompactString>,
     timegrid_id: u8,
     class_id: Vec<u32>,
