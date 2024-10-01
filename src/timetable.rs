@@ -55,9 +55,8 @@ pub struct Lesson {
     timetable_entry_type_id: u8,
 
     // Should probably be an enum
-    timetable_entry_type: String,
-    timetable_entry_type_long: String,
-    timetable_entry_type_short: String,
+    #[serde(rename = "timetableEntryTypeLong")]
+    pub timetable_entry_type: TimeTableEntryType,
 
     message_id: u32,
     message: Option<CompactString>,
@@ -107,6 +106,21 @@ pub struct Lesson {
     total_stock: u8,
     school: CompactString, // Can be empty
     related_id: Vec<CompactString>,
+}
+#[derive(Debug, Deserialize)]
+pub enum TimeTableEntryType {
+    #[serde(rename = "lesson")]
+    Lesson,
+    #[serde(rename = "room changed")]
+    RoomChanged,
+    #[serde(rename = "teacher changed")]
+    TeacherChanged,
+    #[serde(rename = "canceled lesson")]
+    CanceledLesson,
+    #[serde(rename = "block substitution")]
+    BlockSubstitution,
+    #[serde(rename = "instrumental definitive")]
+    InstrumentalDefinitive,
 }
 
 impl IntranetClient<Authenticated> {
