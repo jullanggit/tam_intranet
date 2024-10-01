@@ -1,4 +1,6 @@
 use std::fs;
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 use anyhow::Result;
 use tam_intranet::{
