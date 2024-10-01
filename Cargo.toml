@@ -16,4 +16,4 @@ serde = { version = "1.0.210", features = ["derive"] }
 serde-aux = "4.5.0"
 serde_json = "1.0.128"
 tl = { version = "0.7.8", features = ["simd"] }
-ureq = { version = "2.10.1",  features = ["cookies", "json", "brotli"] }
+ureq = { version = "3.0.0-rc1", features = ["cookies", "brotli"]}
