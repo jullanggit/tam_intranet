@@ -1,5 +1,6 @@
 use crate::{
     intranet_client::{Authenticated, IntranetClient},
+    resources::Student,
     TIMETABLE_LAYOUT,
 };
 use anyhow::Result;
@@ -23,8 +24,6 @@ pub struct TimeTable {
     // status: u8,
     data: Vec<Lesson>,
 }
-pub trait TimeTableTrait {}
-impl TimeTableTrait for TimeTable {}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -106,17 +105,13 @@ pub struct Lesson {
     resource: Option<()>,
     reserved_resources: u8,
     total_stock: u8,
-
     school: CompactString, // Can be empty
     related_id: Vec<CompactString>,
 }
 
 impl IntranetClient<Authenticated> {
     // Generic because of tests
-    pub async fn get_timetable<T>(&self, student_id: u32) -> Result<T>
-    where
-        for<'a> T: Deserialize<'a> + TimeTableTrait,
-    {
+    pub async fn get_timetable(&self, student_id: u32) -> Result<TimeTable> {
         let today = Local::now();
 
         let mut timetable_form = HashMap::new();
