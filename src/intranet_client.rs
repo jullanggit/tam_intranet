@@ -1,18 +1,15 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
-
+use crate::{resources::Name, CSRF_REGEX, DEBUG};
 use anyhow::Result;
 use compact_str::CompactString;
+use cookie_store::CookieStore;
 use regex_lite::Regex;
-use reqwest::{cookie::Jar, header::HeaderMap};
-
-use crate::{resources::Name, CSRF_REGEX, DEBUG};
+use std::time::Duration;
 
 pub struct Authenticated;
 pub struct Unauthenticated;
 
 pub struct IntranetClient<State> {
-    client: reqwest::Client,
-    jar: Arc<Jar>,
+    pub client: ureq::Agent,
     school: School,
     pub student: Name,
     _state: State,
@@ -20,23 +17,15 @@ pub struct IntranetClient<State> {
 impl IntranetClient<Unauthenticated> {
     /// student: (firstname.lastname)
     pub fn new(school: School, student: impl Into<CompactString>) -> Result<Self> {
-        let jar = Arc::new(Jar::default());
-
-        let mut default_headers = HeaderMap::new();
-        default_headers.insert(
-            "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64; rv:87.0) Gecko/20100101 Firefox/87.0".parse()?,
-        );
-
-        let client = reqwest::Client::builder()
-            .default_headers(default_headers)
-            .cookie_provider(jar.clone())
+        let cookie_store = CookieStore::new(None);
+        let client = ureq::AgentBuilder::new()
             .timeout(Duration::from_secs(10))
-            .build()?;
+            .https_only(true)
+            .cookie_store(cookie_store)
+            .build();
 
         Ok(Self {
             client,
-            jar,
             school,
             student: Name {
                 string: student.into(),
@@ -44,25 +33,27 @@ impl IntranetClient<Unauthenticated> {
             _state: Unauthenticated,
         })
     }
-    pub async fn authenticate(self, password: &str) -> Result<IntranetClient<Authenticated>> {
-        let hash = self.get_hash().await?;
+    pub fn authenticate(self, password: &str) -> Result<IntranetClient<Authenticated>> {
+        let hash = self.get_hash()?;
 
-        let mut auth_form = HashMap::new();
-        auth_form.insert("hash", hash.as_ref());
-        auth_form.insert("loginschool", self.school.code());
-        auth_form.insert("loginuser", self.student.string.as_str());
-        auth_form.insert("loginpassword", password);
+        let auth_form = [
+            ("hash", hash.as_ref()),
+            ("loginschool", self.school.code()),
+            ("loginuser", self.student.string.as_str()),
+            ("loginpassword", password),
+        ];
 
         self.client
-            .post(self.school_url())
-            .form(&auth_form)
-            .send()
-            .await?
-            .error_for_status()?;
+            .post(&self.school_url())
+            // TODO: See if i have to do this everywhere
+            .set(
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:87.0) Gecko/20100101 Firefox/87.0",
+            )
+            .send_form(&auth_form)?;
 
         Ok(IntranetClient {
             client: self.client,
-            jar: self.jar,
             school: self.school,
             student: self.student,
             _state: Authenticated,
@@ -70,8 +61,9 @@ impl IntranetClient<Unauthenticated> {
     }
 
     /// Extracts the hash field from the intranet website (necessary for authenticating)
-    async fn get_hash(&self) -> Result<String> {
-        let response_body = self.client.get(self.url()).send().await?.text().await?;
+    fn get_hash(&self) -> Result<String> {
+        let response_body = self.client.get(self.url()).call()?.into_string()?;
+
         // Parse to HTML
         let html_dom = tl::parse(&response_body, tl::ParserOptions::default())?;
 
@@ -102,12 +94,9 @@ impl<State> IntranetClient<State> {
     pub fn school(&self) -> School {
         self.school
     }
-    pub fn client(&self) -> &reqwest::Client {
-        &self.client
-    }
     /// TODO: Check if needs authentication
-    pub async fn get_csrf_token(&self, url: &str) -> Result<String> {
-        let classbook_response = self.client().get(url).send().await?.text().await?;
+    pub fn get_csrf_token(&self, url: &str) -> Result<String> {
+        let classbook_response = self.client.get(url).call()?.into_string()?;
         let csrf_token = Regex::new(CSRF_REGEX)
             .unwrap()
             .captures(&classbook_response)

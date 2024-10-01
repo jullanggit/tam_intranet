@@ -6,18 +6,17 @@ use serde_aux::field_attributes::{
     deserialize_bool_from_anything, deserialize_number_from_string,
     deserialize_option_number_from_string,
 };
-use std::collections::HashMap;
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ResData {
-    status: u8,
-    data: Resources,
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Resources {
+    status: u8,
+    data: ResourceData,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ResourceData {
     courses: Vec<Course>,
     students: Vec<Student>,
     teachers: Vec<Teacher>,
@@ -143,7 +142,8 @@ struct Resource {
 
 impl Resources {
     pub fn get_student_id(&self, student_name: &Name) -> Option<u32> {
-        self.students
+        self.data
+            .students
             .iter()
             .find(|other_student| other_student.name == *student_name)
             .map(|student| student.id)
@@ -152,27 +152,20 @@ impl Resources {
 impl<State> IntranetClient<State> {
     /// TODO: Test if it needs authentication
     /// TODO: Calculate the right periodId
-    pub async fn get_resources(&self) -> Result<Resources> {
+    pub fn get_resources(&self) -> Result<Resources> {
         // Get the csrf token from the classbook site, as the requests normally comes from there
-        let csrf_token = self
-            .get_csrf_token(&(format!("{}/timetable/classbook", self.school_url())))
-            .await?;
+        let csrf_token =
+            self.get_csrf_token(&(format!("{}/timetable/classbook", self.school_url())))?;
 
-        let mut resource_form = HashMap::new();
-        resource_form.insert("periodId", "81");
-        resource_form.insert("csrfToken", csrf_token.as_str());
+        let resource_form = [("periodId", "81"), ("csrfToken", csrf_token.as_str())];
 
         let resource_url = format!("{}/timetable/ajax-get-resources", self.school_url());
         let resource_response = self
-            .client()
+            .client
             .post(&resource_url)
-            .header("X-Requested-With", "XMLHttpRequest")
-            .form(&resource_form)
-            .send()
-            .await?;
-        let resource_body = resource_response.text().await?;
+            .set("X-Requested-With", "XMLHttpRequest")
+            .send_form(&resource_form)?;
 
-        let resources = serde_json::from_str::<ResData>(&resource_body)?.data;
-        Ok(resources)
+        Ok(resource_response.into_json()?)
     }
 }

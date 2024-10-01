@@ -11,7 +11,7 @@ use serde_aux::{
     field_attributes::{deserialize_bool_from_anything, deserialize_option_number_from_string},
     prelude::StringOrVecToVec,
 };
-use std::{collections::HashMap, str::FromStr, time::Duration};
+use std::{str::FromStr, time::Duration};
 
 pub enum TimeTableLayout {
     Centered,
@@ -123,48 +123,45 @@ pub enum TimeTableEntryType {
 
 impl IntranetClient<Authenticated> {
     // Generic because of tests
-    pub async fn get_timetable(&self, student_id: u32) -> Result<TimeTable> {
+    pub fn get_timetable(&self, student_id: u32) -> Result<TimeTable> {
         let today = Local::now();
 
-        let mut timetable_form = HashMap::new();
-        match TIMETABLE_LAYOUT {
+        let (start_date, end_date) = match TIMETABLE_LAYOUT {
             TimeTableLayout::Week => {
                 let monday =
                     today - Duration::from_days((today.weekday().num_days_from_monday()).into());
                 let sunday = monday + Duration::from_days(6);
 
-                timetable_form.insert("startDate", monday.timestamp_millis().to_string());
-                timetable_form.insert("endDate", sunday.timestamp_millis().to_string());
+                (
+                    monday.timestamp_millis().to_string(),
+                    sunday.timestamp_millis().to_string(),
+                )
             }
-            TimeTableLayout::Centered => {
-                timetable_form.insert(
-                    "startDate",
-                    (today - Duration::from_days(3))
-                        .timestamp_millis()
-                        .to_string(),
-                );
-                timetable_form.insert(
-                    "endDate",
-                    (today + Duration::from_days(3))
-                        .timestamp_millis()
-                        .to_string(),
-                );
-            }
+            TimeTableLayout::Centered => (
+                (today - Duration::from_days(3))
+                    .timestamp_millis()
+                    .to_string(),
+                (today + Duration::from_days(3))
+                    .timestamp_millis()
+                    .to_string(),
+            ),
         };
-        timetable_form.insert("studentId[]", student_id.to_string());
-        timetable_form.insert("holidaysOnly", "0".to_string());
+        let student_id_str = student_id.to_string();
+        let timetable_form = [
+            ("startDate", start_date.as_str()),
+            ("endDate", end_date.as_str()),
+            ("studentId[]", student_id_str.as_str()),
+            ("holidaysOnly", "0"),
+        ];
 
         let timetable_url = format!("{}/timetable/ajax-get-timetable", self.school_url());
         let timetable_response = self
-            .client()
+            .client
             .post(&timetable_url)
-            .header("X-Requested-With", "XMLHttpRequest")
-            .form(&timetable_form)
-            .send()
-            .await?;
-        let timetable_text = timetable_response.text().await?;
+            .set("X-Requested-With", "XMLHttpRequest")
+            .send_form(&timetable_form)?;
 
-        Ok(serde_json::from_str(&timetable_text)?)
+        Ok(timetable_response.into_json()?)
     }
 }
 
