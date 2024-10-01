@@ -56,7 +56,7 @@ pub struct Lesson {
 
     // Should probably be an enum
     #[serde(rename = "timetableEntryTypeLong")]
-    pub timetable_entry_type: TimeTableEntryType,
+    timetable_entry_type: TimeTableEntryType,
 
     message_id: u32,
     message: Option<CompactString>,
@@ -164,12 +164,9 @@ impl IntranetClient<Authenticated> {
             .form(&timetable_form)
             .send()
             .await?;
-        let mut timetable_text = timetable_response.text().await?;
+        let timetable_text = timetable_response.text().await?;
 
-        // Safe because the original timetable text isnt used after this
-        Ok(simd_json::from_slice(unsafe {
-            timetable_text.as_bytes_mut()
-        })?)
+        Ok(serde_json::from_str(&timetable_text)?)
     }
 }
 

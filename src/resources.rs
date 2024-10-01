@@ -4,7 +4,6 @@ use anyhow::Result;
 use compact_str::CompactString;
 use serde::Deserialize;
 use serde_aux::field_attributes::{deserialize_bool_from_anything, deserialize_number_from_string};
-use simd_json::prelude::ArrayTrait;
 
 use crate::intranet_client::IntranetClient;
 
@@ -156,11 +155,9 @@ impl<State> IntranetClient<State> {
             .form(&resource_form)
             .send()
             .await?;
-        let mut resource_body = resource_response.text().await?;
+        let resource_body = resource_response.text().await?;
 
-        // Safe because the original resource text isnt used after this
-        let resources =
-            simd_json::from_slice::<ResData>(unsafe { resource_body.as_bytes_mut() })?.data;
+        let resources = serde_json::from_str::<ResData>(&resource_body)?.data;
         Ok(resources)
     }
 }
