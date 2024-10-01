@@ -1,12 +1,10 @@
-use std::fs;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
 use anyhow::Result;
-use tam_intranet::{
-    intranet_client::{IntranetClient, School},
-    timetable::TimeTable,
-};
+use mimalloc::MiMalloc;
+use std::fs;
+use tam_intranet::intranet_client::{IntranetClient, School};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -18,8 +16,12 @@ async fn main() -> Result<()> {
 
     let resources = intranet_client.get_resources().await?;
 
-    let timetable: TimeTable = intranet_client
-        .get_timetable(resources.get_student_id(intranet_client.student()))
+    let timetable = intranet_client
+        .get_timetable(
+            resources
+                .get_student_id(&intranet_client.student)
+                .expect("Student should exist"),
+        )
         .await?;
 
     Ok(())

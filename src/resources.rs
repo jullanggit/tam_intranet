@@ -92,34 +92,11 @@ struct Room {
     building: Option<String>,
 }
 impl Resources {
-    /// Returns the student id associated with the student. Note: Creates an internal student map, if you want to call this function on a lot of students, consider using get_student_map directly
-    pub fn get_student_id(&self, student: &str) -> u32 {
-        self.get_student_map()[student]
-    }
-    /// Returns a Map from student name (firstname.lastname) to studentId
-    /// TODO: Handle multi-part first/last names
-    pub fn get_student_map(&self) -> HashMap<String, u32> {
-        let mut student_map = HashMap::new();
+    pub fn get_student_id(&self, student_name: &Name) -> Option<u32> {
         self.students
             .iter()
-            .map(|student| {
-                (
-                    // Convert (Lastname, Firstname) to (firstname.lastname)
-                    student
-                        .name
-                        // Cant split by ", " because that wouldn't return a Double-Ended Iterator
-                        .split(',')
-                        .map(|name_part| name_part.trim_start().to_lowercase())
-                        .rev()
-                        .intersperse('.'.to_string())
-                        .collect(),
-                    student.person_id,
-                )
-            })
-            .for_each(|(student_name, student_id)| {
-                student_map.insert(student_name, student_id);
-            });
-        student_map
+            .find(|other_student| other_student.name == *student_name)
+            .map(|student| student.id)
     }
 }
 impl<State> IntranetClient<State> {
