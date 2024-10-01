@@ -1,16 +1,17 @@
-use std::collections::HashMap;
-
+use crate::intranet_client::IntranetClient;
 use anyhow::Result;
 use compact_str::CompactString;
 use serde::Deserialize;
-use serde_aux::field_attributes::{deserialize_bool_from_anything, deserialize_number_from_string};
-
-use crate::intranet_client::IntranetClient;
+use serde_aux::field_attributes::{
+    deserialize_bool_from_anything, deserialize_number_from_string,
+    deserialize_option_number_from_string,
+};
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct ResData {
-    _status: u8,
+    status: u8,
     data: Resources,
 }
 
@@ -22,7 +23,7 @@ pub struct Resources {
     teachers: Vec<Teacher>,
     classes: Vec<Class>,
     rooms: Vec<Room>,
-    resources: [(); 0],
+    resources: Vec<Resource>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -37,7 +38,7 @@ struct Course {
     teacher_name: CompactString,
     // Really a vec but idk if deserialization would work
     student_name: String,
-    subject_id: u8,
+    subject_id: u16,
     teacher_id: Vec<u32>,
     student_id: Vec<u32>,
     class_id: Vec<u16>,
@@ -120,10 +121,24 @@ struct Room {
     sort1: u8,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     sort2: u8,
-    #[serde(deserialize_with = "deserialize_number_from_string")]
-    room_category: u8,
+    #[serde(deserialize_with = "deserialize_option_number_from_string")]
+    room_category: Option<u8>,
     // Null
     building: Option<CompactString>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct Resource {
+    resource_id: u8,
+    resource: CompactString,
+    description: CompactString,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    sort1: u8,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    sort2: u8,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    resource_category: u8,
 }
 
 impl Resources {
