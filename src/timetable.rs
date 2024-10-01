@@ -21,8 +21,6 @@ pub enum TimeTableLayout {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TimeTable {
-    // status: u8,
-    data: Vec<Lesson>,
 }
 
 #[derive(Debug, Deserialize)]
