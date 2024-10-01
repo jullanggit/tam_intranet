@@ -46,20 +46,52 @@ struct Course {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Student {
-    person_id: u32,
-    name: String,
+#[serde(deny_unknown_fields)]
+pub struct Student {
+    #[serde(alias = "personId", alias = "studentId")]
+    id: u32,
+    #[serde(alias = "studentName")]
+    name: Name,
+}
+
+/// A name in the format firstname.lastname
+#[derive(Debug, PartialEq)]
+pub struct Name {
+    pub string: CompactString,
+}
+impl<'de> Deserialize<'de> for Name {
+    /// Deserialize from (Lastname, Firstname) to (firstname.lastname)
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let str: String = Deserialize::deserialize(deserializer)?;
+        Ok(Self::from_lastname_firstname(&str))
+    }
+}
+impl Name {
+    /// From format (Lastname, Firstname)
+    pub fn from_lastname_firstname(name: &str) -> Self {
+        Self {
+            string: name
+                // Cant split by ", " because that wouldn't return a Double-Ended Iterator
+                .split(',')
+                .map(|name_part| name_part.trim_start().to_lowercase())
+                .rev()
+                .intersperse('.'.to_string())
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Teacher {
     person_id: u32,
-    name: String,
-    acronym: Option<String>,
-    // Really a bool (probably)
-    occupied: u8,
+    name: CompactString,
+    acronym: Option<CompactString>,
+    #[serde(deserialize_with = "deserialize_bool_from_anything")]
+    occupied: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -70,10 +102,10 @@ struct Class {
     class_short: CompactString, // Duplicate of class_name
     class_common_name: CompactString,
     period_id: u8,
-    // Really an integer (u8)
-    class_level: String,
-    // Really a bool (probably)
-    occupied: u8,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    class_level: u8,
+    #[serde(deserialize_with = "deserialize_bool_from_anything")]
+    occupied: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,18 +114,19 @@ struct Room {
     room_id: u16,
     room: CompactString,
     // Null
-    // Really a bool (probably)
-    occupied: u8,
-    // Really an integer (u8)
-    sort1: String,
-    // Really an integer (u8)
-    sort2: String,
-    // Really an integer (u8)
-    room_category: String,
     description: Option<CompactString>,
+    #[serde(deserialize_with = "deserialize_bool_from_anything")]
+    occupied: bool,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    sort1: u8,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    sort2: u8,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
+    room_category: u8,
     // Null
     building: Option<CompactString>,
 }
+
 impl Resources {
     pub fn get_student_id(&self, student_name: &Name) -> Option<u32> {
         self.students
